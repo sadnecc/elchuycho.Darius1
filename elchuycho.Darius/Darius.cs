@@ -13,7 +13,7 @@
 
     public class Darius
     {
-        public static Menu ComboM, HarassM, LaneM, JungleM, DrawM, KsM;
+        public static Menu ComboM, HarassM, LaneM, JungleM, DrawM, KsM, MainMenu;
         public static Spell Q;
         public static Spell W;
         public static Spell E;
@@ -30,11 +30,12 @@
             W = new Spell(SpellSlot.W, 250);
             E = new Spell(SpellSlot.E, 525);
             R = new Spell(SpellSlot.R, 460);
+            E.SetSkillshot(0.20f, 100f, float.MaxValue, false, SkillshotType.Line);
 
 
-            var MainMenu = new Menu("elchuycho:Darius", "elchuycho:Darius", true);
+            MainMenu = new Menu("elchuychoDarius", "elchuychoDarius", true);
 
-            ComboM = new Menu("Combo Settings", "Combo Settings");
+            ComboM = new Menu("ComboSettings", "Combo Settings");
             ComboM.Add(new MenuBool("QC", "Use Q"));
             ComboM.Add(new MenuBool("WC", "Use W"));
             ComboM.Add(new MenuBool("EC", "Use E"));
@@ -42,14 +43,14 @@
             MainMenu.Add(ComboM);
 
 
-            HarassM = new Menu("Harass Settings", "Harass Settings");
+            HarassM = new Menu("HarassSettings", "Harass Settings");
             HarassM.Add(new MenuBool("QH", "Use Q"));
             HarassM.Add(new MenuBool("WH", "Use W"));
             HarassM.Add(new MenuBool("EH", "Use E"));
             MainMenu.Add(HarassM);
 
 
-            LaneM = new Menu("Lane Settings", "Lane Settings");
+            LaneM = new Menu("LaneSettings", "Lane Settings");
             LaneM.Add(new MenuBool("QL", "Use Q"));
             LaneM.Add(new MenuSlider("QL2", "Use Q When X Minions =", 3, 1, 5));
             LaneM.Add(new MenuBool("WL", "Use W"));
@@ -57,21 +58,21 @@
             MainMenu.Add(LaneM);
 
 
-            JungleM = new Menu("Jungle Settings", "Jungle Settings");
+            JungleM = new Menu("JungleSettings", "Jungle Settings");
             JungleM.Add(new MenuBool("QJ", "Use Q"));
             JungleM.Add(new MenuBool("WJ", "Use W"));
             JungleM.Add(new MenuBool("EJ", "Use E"));
             MainMenu.Add(JungleM);
 
 
-            KsM = new Menu("KillSteal Settings", "KillSteal Settings");
+            KsM = new Menu("KillStealSettings", "KillSteal Settings");
             KsM.Add(new MenuBool("QK", "Use Q"));
             KsM.Add(new MenuBool("WK", "Use W"));
             KsM.Add(new MenuBool("RK", "Use R"));
             MainMenu.Add(KsM);
 
 
-            DrawM = new Menu("Draw Settings", "Draw Settings");
+            DrawM = new Menu("DrawSettings", "Draw Settings");
             DrawM.Add(new MenuBool("QD", "Draw Q"));
             DrawM.Add(new MenuBool("WD", "Draw W"));
             DrawM.Add(new MenuBool("ED", "Draw E"));
@@ -95,18 +96,18 @@
             {
                 case OrbwalkerMode.Combo:
                     Combo();
-                    KillSteal();
                     break;
                 case OrbwalkerMode.Harass:
                     Harass();
-                    KillSteal();
                     break;
                 case OrbwalkerMode.LaneClear:
                     LaneClear();
                     JungleClear();
-                    KillSteal();
                     break;
+
             }
+            KillSteal();
+
         }
 
 
@@ -115,7 +116,7 @@
             if (ComboM["QC"].GetValue<MenuBool>().Enabled && Q.IsReady())
             {
                 var target = TargetSelector.GetTarget(Q.Range);
-                if (target.IsValidTarget(Q.Range) && Q.IsReady())
+                if (target.IsValidTarget(Q.Range))
                 {
                     Q.Cast(target);
                 }
@@ -124,7 +125,7 @@
             if (ComboM["WC"].GetValue<MenuBool>().Enabled && W.IsReady())
             {
                 var target = TargetSelector.GetTarget(W.Range);
-                if (target.IsValidTarget(W.Range) && W.IsReady())
+                if (target.IsValidTarget(W.Range))
                 {
                     W.Cast(target);
                 }
@@ -133,23 +134,43 @@
             if (ComboM["EC"].GetValue<MenuBool>().Enabled && E.IsReady())
             {
                 var target = TargetSelector.GetTarget(E.Range);
-                if (target.IsValidTarget(E.Range) && E.IsReady())
+                if (target.IsValidTarget(E.Range))
                 {
                     E.Cast(target);
                 }
             }
+
+            var targetp = TargetSelector.GetTarget(R.Range);
+
             if (ComboM["RC"].GetValue<MenuBool>().Enabled && R.IsReady())
             {
-                foreach (var target in GameObjects.EnemyHeroes.Where(x =>
-                   x.IsValidTarget(R.Range) && !x.IsInvulnerable && x.Health < R.GetDamage(x)))
+
+                foreach (var hero in
+                        GameObjects.EnemyHeroes.Where(hero => hero.IsValidTarget(R.Range)))
                 {
-                    if (target.Health <= R.GetDamage(target))
+                    if (WAA.GetSpellDamage(targetp, SpellSlot.R) > hero.Health)
                     {
-                        R.CastOnUnit(target);
+                        R.CastOnUnit(targetp);
+                    }
+
+                    else if (WAA.GetSpellDamage(targetp, SpellSlot.R) < hero.Health)
+                    {
+                        foreach (var buff in targetp.Buffs.Where(buff => buff.Name == "dariushemo"))
+                        {
+                            if (WAA.GetSpellDamage(targetp, SpellSlot.R) * (1 + buff.Count / 5) - 1
+                                > targetp.Health)
+                            {
+                                R.CastOnUnit(targetp);
+                            }
+                        }
                     }
                 }
+
             }
         }
+
+
+
         private static void Harass()
         {
             if (HarassM["QH"].GetValue<MenuBool>().Enabled && Q.IsReady())
