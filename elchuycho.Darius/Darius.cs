@@ -18,6 +18,8 @@
         public static Spell W;
         public static Spell E;
         public static Spell R;
+        public static int passiveCounter;
+
 
         public static AIHeroClient WAA
         {
@@ -140,30 +142,14 @@
                 }
             }
 
-            var targetp = TargetSelector.GetTarget(R.Range);
 
             if (ComboM["RC"].GetValue<MenuBool>().Enabled && R.IsReady())
             {
+                var target = TargetSelector.GetTarget(R.Range, DamageType.True);
 
-                foreach (var hero in
-                        GameObjects.EnemyHeroes.Where(hero => hero.IsValidTarget(R.Range)))
+                if (target.IsValidTarget(R.Range) && RDamage(target, passiveCounter) + PassiveDamage(target, 1) > target.Health)
                 {
-                    if (WAA.GetSpellDamage(targetp, SpellSlot.R) > hero.Health)
-                    {
-                        R.CastOnUnit(targetp);
-                    }
-
-                    else if (WAA.GetSpellDamage(targetp, SpellSlot.R) < hero.Health)
-                    {
-                        foreach (var buff in targetp.Buffs.Where(buff => buff.Name == "dariushemo"))
-                        {
-                            if (WAA.GetSpellDamage(targetp, SpellSlot.R) * (1 + buff.Count / 5) - 1
-                                > targetp.Health)
-                            {
-                                R.CastOnUnit(targetp);
-                            }
-                        }
-                    }
+                    R.Cast(target);
                 }
 
             }
@@ -259,11 +245,19 @@
             {
                 foreach (var target in GameObjects.EnemyHeroes.Where(x => x.IsValidTarget(R.Range) && x.Health < WAA.GetSpellDamage(x, SpellSlot.R)))
                 {
-                    if (target.IsValidTarget(R.Range))
+                    /*if (target.IsValidTarget(R.Range))
                     {
                         R.Cast(target);
+                    }*/
+
+                    var target2 = TargetSelector.GetTarget(R.Range, DamageType.True);
+
+                    if (target2.IsValidTarget(R.Range) && RDamage(target2, passiveCounter) + PassiveDamage(target2, 1) > target2.Health)
+                    {
+                        R.Cast(target2);
                     }
                 }
+
             }
         }
         private static void JungleClear()
@@ -306,6 +300,37 @@
                 Render.Circle.DrawCircle(GameObjects.Player.Position, R.Range, Color.FromArgb(0, 255, 255), 1);
             }
         }
+
+
+        public static float RDamage(AIBaseClient unit, int stackcount)
+        {
+            var bonus = stackcount * (new[] { 20, 20, 40, 60 }[R.Level] + (0.15 * ObjectManager.Player.FlatPhysicalDamageMod));
+
+            return
+                (float)
+                (bonus
+                 + ObjectManager.Player.CalculateDamage(
+                     unit,
+                     DamageType.True,
+                     new[] { 100, 100, 200, 300 }[R.Level] + (float)(0.75 * ObjectManager.Player.FlatPhysicalDamageMod)));
+        }
+
+
+
+        public static double PassiveDamage(AIBaseClient unit, int stackcount)
+        {
+            if (stackcount < 1)
+            {
+                stackcount = 1;
+            }
+
+            return ObjectManager.Player.CalculateDamage(
+                unit,
+                DamageType.Physical,
+                (9 + ObjectManager.Player.Level) + (float)(0.3 * ObjectManager.Player.FlatPhysicalDamageMod)) * stackcount;
+        }
+
+
     }
 }
 
