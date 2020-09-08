@@ -9,7 +9,7 @@
     using System.Linq;
     using EnsoulSharp.SDK.Utility;
     using Color = System.Drawing.Color;
-
+    using SPrediction;
 
     public class Darius
     {
@@ -69,7 +69,6 @@
 
             KsM = new Menu("KillStealSettings", "KillSteal Settings");
             KsM.Add(new MenuBool("QK", "Use Q"));
-            KsM.Add(new MenuBool("WK", "Use W"));
             KsM.Add(new MenuBool("RK", "Use R"));
             MainMenu.Add(KsM);
 
@@ -120,7 +119,9 @@
                 var target = TargetSelector.GetTarget(Q.Range);
                 if (target.IsValidTarget(Q.Range))
                 {
-                    Q.Cast(target);
+
+                    MagnetQ(target);
+                    Q.Cast();
                 }
 
             }
@@ -231,25 +232,10 @@
                     }
                 }
             }
-            if (KsM["WK"].GetValue<MenuBool>().Enabled && W.IsReady())
-            {
-                foreach (var target in GameObjects.EnemyHeroes.Where(x => x.IsValidTarget(W.Range) && x.Health < WAA.GetSpellDamage(x, SpellSlot.W)))
-                {
-                    if (target.IsValidTarget(W.Range))
-                    {
-                        W.Cast(target);
-                    }
-                }
-            }
             if (KsM["RK"].GetValue<MenuBool>().Enabled && R.IsReady())
             {
                 foreach (var target in GameObjects.EnemyHeroes.Where(x => x.IsValidTarget(R.Range) && x.Health < WAA.GetSpellDamage(x, SpellSlot.R)))
                 {
-                    /*if (target.IsValidTarget(R.Range))
-                    {
-                        R.Cast(target);
-                    }*/
-
                     var target2 = TargetSelector.GetTarget(R.Range, DamageType.True);
 
                     if (target2.IsValidTarget(R.Range) && RDamage(target2, passiveCounter) + PassiveDamage(target2, 1) > target2.Health)
@@ -304,15 +290,15 @@
 
         public static float RDamage(AIBaseClient unit, int stackcount)
         {
-            var bonus = stackcount * (new[] { 20, 20, 40, 60 }[R.Level] + (0.15 * ObjectManager.Player.FlatPhysicalDamageMod));
+            var bonus = stackcount * (new[] { 20, 20, 40, 60 }[R.Level] + (0.15 * WAA.FlatPhysicalDamageMod));
 
             return
                 (float)
                 (bonus
-                 + ObjectManager.Player.CalculateDamage(
+                 + WAA.CalculateDamage(
                      unit,
                      DamageType.True,
-                     new[] { 100, 100, 200, 300 }[R.Level] + (float)(0.75 * ObjectManager.Player.FlatPhysicalDamageMod)));
+                     new[] { 100, 100, 200, 300 }[R.Level] + (float)(0.75 * WAA.FlatPhysicalDamageMod)));
         }
 
 
@@ -324,11 +310,24 @@
                 stackcount = 1;
             }
 
-            return ObjectManager.Player.CalculateDamage(
+            return WAA.CalculateDamage(
                 unit,
                 DamageType.Physical,
-                (9 + ObjectManager.Player.Level) + (float)(0.3 * ObjectManager.Player.FlatPhysicalDamageMod)) * stackcount;
+                (9 + WAA.Level) + (float)(0.3 * WAA.FlatPhysicalDamageMod)) * stackcount;
         }
+
+
+        static void MagnetQ(AIBaseClient target)
+        {
+
+            if (target.Distance(WAA) <= Q.Range + 15)
+            {
+                var pos = Prediction.GetFastUnitPosition(target, Game.Ping / 2000f).Extend(WAA.Position, Q.Range - 100);
+                WAA.IssueOrder(GameObjectOrder.MoveTo, pos.ToVector3(), false);
+            }
+        }
+
+
 
 
     }
